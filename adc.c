@@ -19,16 +19,19 @@
 #define VRY 27
 #define endereco 0x3c
 uint8_t i;
+uint8_t j;
 const uint8_t b[2] = {5, 22};
 #define periodo 4096
 const float divisor = 16.0;
 uint16_t led_level_b, red_level_r = 100;
-uint s[2];
+uint s[2] = {12, 13};
 static volatile uint64_t last_time;
 static volatile bool on_off_1 = 0;
 static volatile bool on_off_2 = 0;
 static volatile bool f_t_1 = 1;
 static volatile bool f_t_2 = 1;
+uint16_t vr_val;
+
 
 
 void ledinit(){
@@ -39,7 +42,7 @@ void ledinit(){
     }
 }
 void botinit(){
-    for(uint8_t j = 0 ; j <= 1 ; j++){
+    for(j = 0 ; j <= 1 ; j++){
         gpio_init (b[j]);
         gpio_set_dir(b[j], 0);
         gpio_pull_up(b[j]);
@@ -55,7 +58,7 @@ void i2cinit(){
 }
 
 void pwm_setup(){
-    for(uint8_t p = 0, i = 12 ; i <= 13 ; p++, i++){
+    for(uint8_t p = 12, i = 12 ; i <= 13 ; p++, i++){
         gpio_set_function(i, GPIO_FUNC_PWM);
         s[p] = pwm_gpio_to_slice_num(i);
         pwm_set_clkdiv(s[p], divisor);
@@ -64,12 +67,25 @@ void pwm_setup(){
         pwm_set_enabled(s[p], true);          
     }
 }
-void pwm(){
+
+void adc_1 (){    
     adc_select_input(0);
-    uint16_t vrx_v = adc_read();
-    float dc = (vrx_v / 4095.0) * 100;
-    pwm_set_gpio_level(s[0], (dc / 100.0* 4095));
+    vr_val = adc_read();
+    printf("Valor digital eixo X: %d \n", vr_val);
+    sleep_ms(100);
+    if(vr_val >= 1700 && vr_val <= 2500) pwm_set_gpio_level(12, 0);
+    else if(vr_val < 1700 && vr_val > 99) pwm_set_gpio_level(12, -100);
+    else if (vr_val > 2500 && vr_val < 4096)pwm_set_gpio_level(12, +100);
 }
+void adc_2 (){
+    adc_select_input(1);
+    vr_val = adc_read();
+    printf("Valor digital eixo Y: %d \n", vr_val);
+    sleep_ms(100);
+    if(vr_val >= 1700 && vr_val <= 2500) pwm_set_gpio_level(13, 0);
+    else if(vr_val < 1700 && vr_val > 99) pwm_set_gpio_level(13, -100);
+    else if (vr_val > 2500 && vr_val < 4096)pwm_set_gpio_level(13, +100);
+}    
 
 ssd1306_t ssd;
 void oledinit(){
@@ -86,12 +102,6 @@ void oleddis(const char *dot){
     ssd1306_send_data(&ssd);
 }
 
-void joy_init(){
-    for(i = 26 ; i<= 27 ; i++){
-        adc_gpio_init(i);
-    }
-}
-
 void gpio_irq_handler(uint gpio, uint32_t events){
     uint32_t current_time = to_us_since_boot(get_absolute_time());
     if(gpio == botao_a || gpio == botao_j){
@@ -99,7 +109,7 @@ void gpio_irq_handler(uint gpio, uint32_t events){
             if(gpio == botao_a){
                 pwm_set_enabled(s[0], !f_t_1);
                 pwm_set_enabled(s[1], !f_t_2);
-                
+
                 on_off_1 = !on_off_1;
                 (on_off_1 == 1) ? printf("PWM Desativado.\n") : printf("PWM Ativado.\n");
             }
@@ -126,6 +136,8 @@ adc_init();
 int_irq(botao_a);
 int_irq(botao_j);
     while (true) {
-        pwm();
+        adc_1();
+        adc_2();
+        sleep_ms(100);
     }
 }
