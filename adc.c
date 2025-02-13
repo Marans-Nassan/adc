@@ -27,6 +27,8 @@ uint s[2];
 static volatile uint64_t last_time;
 static volatile bool on_off_1 = 0;
 static volatile bool on_off_2 = 0;
+static volatile bool f_t_1 = 1;
+static volatile bool f_t_2 = 1;
 
 
 void ledinit(){
@@ -66,7 +68,7 @@ void pwm(){
     adc_select_input(0);
     uint16_t vrx_v = adc_read();
     float dc = (vrx_v / 4095.0) * 100;
-    pwm_set_gpio_level(s[0], vrx_v);
+    pwm_set_gpio_level(s[0], (dc / 100.0* 4095));
 }
 
 ssd1306_t ssd;
@@ -92,19 +94,20 @@ void joy_init(){
 
 void gpio_irq_handler(uint gpio, uint32_t events){
     uint32_t current_time = to_us_since_boot(get_absolute_time());
-    if(gpio == botao_a || gpio == botao_j && current_time - last_time > 300000){
-        if(gpio == botao_a){
-            pwm_set_enabled(s[0], !true);
-            pwm_set_enabled(s[1], !true);
-            on_off_1 = !on_off_1;
-            if(on_off_1 == 1)printf("PWM Desativado.\n");
-            else printf("PWM Ativado.\n");
-        }
-        if (gpio == botao_j){
-            gpio_put(11, !gpio_get(11));
-            on_off_2 = !on_off_2;
-            if(on_off_2 == 1)printf("Led Verde Ligado.\n");
-            else printf("Led Verde Desligado.\n");
+    if(gpio == botao_a || gpio == botao_j){
+        if(current_time - last_time > 300000){
+            if(gpio == botao_a){
+                pwm_set_enabled(s[0], !f_t_1);
+                pwm_set_enabled(s[1], !f_t_2);
+                
+                on_off_1 = !on_off_1;
+                (on_off_1 == 1) ? printf("PWM Desativado.\n") : printf("PWM Ativado.\n");
+            }
+            if (gpio == botao_j){
+                gpio_put(11, !gpio_get(11));
+                on_off_2 = !on_off_2;
+                (on_off_2 == 1) ? printf("Led Verde Ligado.\n"): printf("Led Verde Desligado.\n");
+            }
         }
         last_time = current_time;
     }
@@ -117,12 +120,12 @@ int main()
 {
 stdio_init_all();
 ledinit();
+pwm_setup();
 botinit();
 adc_init();
 int_irq(botao_a);
 int_irq(botao_j);
     while (true) {
-        printf("Hello, world!\n");
-        sleep_ms(100000);
+        pwm();
     }
 }
