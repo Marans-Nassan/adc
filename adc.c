@@ -19,18 +19,19 @@
 #define VRY 27
 #define endereco 0x3c
 uint8_t i;
-uint8_t j;
 const uint8_t b[2] = {5, 22};
 #define periodo 4096
 const float divisor = 16.0;
-uint16_t led_level_b, red_level_r = 100;
-uint s[2] = {12, 13};
+uint16_t led_level_b, led_level_r = 100;
+uint slice_led_b, slice_led_r;
 static volatile uint64_t last_time;
 static volatile bool on_off_1 = 0;
 static volatile bool on_off_2 = 0;
 static volatile bool f_t_1 = 1;
 static volatile bool f_t_2 = 1;
-uint16_t vr_val;
+uint16_t vrx_value, vry_value;
+#define CALIBRACAO_Y 2105
+#define CALIBRACAO_X 1930
 
 
 
@@ -42,10 +43,10 @@ void ledinit(){
     }
 }
 void botinit(){
-    for(j = 0 ; j <= 1 ; j++){
-        gpio_init (b[j]);
-        gpio_set_dir(b[j], 0);
-        gpio_pull_up(b[j]);
+    for(i = 0 ; i <= 1 ; i++){
+        gpio_init (b[i]);
+        gpio_set_dir(b[i], 0);
+        gpio_pull_up(b[i]);
     }
 }   
 
@@ -57,35 +58,44 @@ void i2cinit(){
         }
 }
 
-void pwm_setup(){
-    for(uint8_t p = 12, i = 12 ; i <= 13 ; p++, i++){
-        gpio_set_function(i, GPIO_FUNC_PWM);
-        s[p] = pwm_gpio_to_slice_num(i);
-        pwm_set_clkdiv(s[p], divisor);
-        pwm_set_wrap(s[p], periodo);
-        pwm_set_gpio_level(i, 0);
-        pwm_set_enabled(s[p], true);          
-    }
+void pwm_setup(uint led, uint *slice, uint16_t leveli){
+        gpio_set_function(led, GPIO_FUNC_PWM);
+        *slice = pwm_gpio_to_slice_num(led);
+        pwm_set_clkdiv(*slice, divisor);
+        pwm_set_wrap(*slice, periodo);
+        pwm_set_gpio_level(led, leveli);
+        pwm_set_enabled(*slice, true);          
+    
 }
 
-void adc_1 (){    
-    adc_select_input(0);
-    vr_val = adc_read();
-    printf("Valor digital eixo X: %d \n", vr_val);
-    sleep_ms(100);
-    if(vr_val >= 1700 && vr_val <= 2500) pwm_set_gpio_level(12, 0);
-    else if(vr_val < 1700 && vr_val > 99) pwm_set_gpio_level(12, -100);
-    else if (vr_val > 2500 && vr_val < 4096)pwm_set_gpio_level(12, +100);
+void joyinit(){
+    adc_init();
+    adc_gpio_init(VRX);
+    adc_gpio_init(VRY);
 }
-void adc_2 (){
+
+void joy_set(){
+    joyinit();
+    pwm_setup(blue_led, &slice_led_b, led_level_b);
+    pwm_setup(red_led, &slice_led_r, led_level_r);
+}
+
+void joy_reading(uint16_t *vrx_value, uint16_t *vry_value){
+    adc_select_input(0);
+    sleep_us(2);
+    *vrx_value = adc_read();
+    *vrx_value = *vrx_value - CALIBRACAO_X + 2048;
     adc_select_input(1);
-    vr_val = adc_read();
-    printf("Valor digital eixo Y: %d \n", vr_val);
-    sleep_ms(100);
-    if(vr_val >= 1700 && vr_val <= 2500) pwm_set_gpio_level(13, 0);
-    else if(vr_val < 1700 && vr_val > 99) pwm_set_gpio_level(13, -100);
-    else if (vr_val > 2500 && vr_val < 4096)pwm_set_gpio_level(13, +100);
-}    
+    sleep_us(2);
+    *vry_value = adc_read();
+    *vry_value = *vry_value - CALIBRACAO_Y + 2048;
+}
+
+void pwm_level(){
+        joy_reading(&vrx_value, &vry_value);
+        pwm_set_gpio_level(blue_led, vry_value);
+        pwm_set_gpio_level(red_led, vrx_value);
+}
 
 ssd1306_t ssd;
 void oledinit(){
@@ -107,8 +117,8 @@ void gpio_irq_handler(uint gpio, uint32_t events){
     if(gpio == botao_a || gpio == botao_j){
         if(current_time - last_time > 300000){
             if(gpio == botao_a){
-                pwm_set_enabled(s[0], !f_t_1);
-                pwm_set_enabled(s[1], !f_t_2);
+                pwm_set_enabled(12, !f_t_1);
+                pwm_set_enabled(13, !f_t_2);
 
                 on_off_1 = !on_off_1;
                 (on_off_1 == 1) ? printf("PWM Desativado.\n") : printf("PWM Ativado.\n");
@@ -130,14 +140,17 @@ int main()
 {
 stdio_init_all();
 ledinit();
-pwm_setup();
 botinit();
-adc_init();
+joy_set();
+pwm_setup(blue_led, &slice_led_b, 0);
+pwm_setup(red_led, &slice_led_r, 0);
 int_irq(botao_a);
 int_irq(botao_j);
     while (true) {
-        adc_1();
-        adc_2();
+        joy_reading(&vrx_value, &vry_value);
+        printf("Valor digital dos eixos. Eixo Y: %d. Eixo X:%d\n", vrx_value, vry_value);
+        pwm_set_gpio_level(blue_led, vry_value);
+        pwm_set_gpio_level(red_led, vrx_value);
         sleep_ms(100);
     }
 }
