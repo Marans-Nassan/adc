@@ -15,8 +15,8 @@
 #define botao_j 22
 #define adc_channel_0  0
 #define adc_channel_1  1
-#define VRX 26
-#define VRY 27
+#define VRY 26
+#define VRX 27
 #define endereco 0x3c
 uint8_t i;
 const uint8_t b[2] = {5, 22};
@@ -30,10 +30,6 @@ static volatile bool on_off_2 = 0;
 static volatile bool f_t_1 = 1;
 static volatile bool f_t_2 = 1;
 uint16_t vrx_value, vry_value;
-#define CALIBRACAO_Y 2105
-#define CALIBRACAO_X 1930
-
-
 
 void ledinit(){
     for(i = 11 ; i <= 13; i++ ){    
@@ -70,8 +66,8 @@ void pwm_setup(uint led, uint *slice, uint16_t leveli){
 
 void joyinit(){
     adc_init();
-    adc_gpio_init(VRX);
     adc_gpio_init(VRY);
+    adc_gpio_init(VRX);
 }
 
 void joy_set(){
@@ -84,11 +80,9 @@ void joy_reading(uint16_t *vrx_value, uint16_t *vry_value){
     adc_select_input(0);
     sleep_us(2);
     *vrx_value = adc_read();
-    *vrx_value = *vrx_value - CALIBRACAO_X + 2048;
     adc_select_input(1);
     sleep_us(2);
     *vry_value = adc_read();
-    *vry_value = *vry_value - CALIBRACAO_Y + 2048;
 }
 
 void pwm_level(){
