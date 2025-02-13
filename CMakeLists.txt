@@ -35,18 +35,18 @@ pico_sdk_init()
 
 # Add executable. Default name is the project name, version 0.1
 
-add_executable(adc adc.c )
+add_executable(adc adc.c ssd1306.c)
 
 pico_set_program_name(adc "adc")
 pico_set_program_version(adc "0.1")
 
 # Modify the below lines to enable/disable output over UART/USB
 pico_enable_stdio_uart(adc 0)
-pico_enable_stdio_usb(adc 0)
+pico_enable_stdio_usb(adc 1)
 
 # Add the standard library to the build
 target_link_libraries(adc
-        pico_stdlib)
+        pico_stdlib hardware_adc hardware_pwm hardware_i2c)
 
 # Add the standard include files to the build
 target_include_directories(adc PRIVATE
