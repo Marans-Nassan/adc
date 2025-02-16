@@ -15,21 +15,56 @@
 #define botao_j 22
 #define adc_channel_0  0
 #define adc_channel_1  1
-#define VRY 26
-#define VRX 27
+#define VRX 26
+#define VRY 27
 #define endereco 0x3c
+#define periodo 4096
+#define int_irq(gpio_pin) gpio_set_irq_enabled_with_callback(gpio_pin, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_handler);
+
 uint8_t i;
 const uint8_t b[2] = {5, 22};
-#define periodo 4096
 const float divisor = 16.0;
 uint16_t led_level_b, led_level_r = 100;
 uint slice_led_b, slice_led_r;
 static volatile uint64_t last_time;
 static volatile bool on_off_1 = 0;
 static volatile bool on_off_2 = 0;
+static volatile bool on_off_pw1 = 0;
 static volatile bool f_t_1 = 1;
 static volatile bool f_t_2 = 1;
 uint16_t vrx_value, vry_value;
+
+void ledinit();
+void botinit();
+void i2cinit();
+void pwm_setup(uint led, uint *slice, uint16_t leveli);
+void pwm_level();
+void joyinit();
+void joy_set();
+void joy_reading(uint16_t *vrx_value, uint16_t *vry_value);
+void oledinit();
+void oleddis(const char *dot);
+void gpio_irq_handler(uint gpio, uint32_t events);
+
+int main(){
+stdio_init_all();
+ledinit();
+botinit();
+joy_set();
+pwm_setup(blue_led, &slice_led_b, 0);
+pwm_setup(red_led, &slice_led_r, 0);
+int_irq(botao_a);
+int_irq(botao_j);
+    while (true) {
+        joy_reading(&vrx_value, &vry_value);
+        printf("Valor digital dos eixos. Eixo Y: %d. Eixo X:%d\n", vry_value, vrx_value);
+        pwm_set_gpio_level(blue_led, vry_value);
+        pwm_set_gpio_level(red_led, vrx_value);
+        sleep_ms(100);
+    }
+}
+
+//Funções
 
 void ledinit(){
     for(i = 11 ; i <= 13; i++ ){    
@@ -126,25 +161,4 @@ void gpio_irq_handler(uint gpio, uint32_t events){
         last_time = current_time;
     }
 
-}
-
-#define int_irq(gpio_pin) gpio_set_irq_enabled_with_callback(gpio_pin, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_handler);
-
-int main()
-{
-stdio_init_all();
-ledinit();
-botinit();
-joy_set();
-pwm_setup(blue_led, &slice_led_b, 0);
-pwm_setup(red_led, &slice_led_r, 0);
-int_irq(botao_a);
-int_irq(botao_j);
-    while (true) {
-        joy_reading(&vrx_value, &vry_value);
-        printf("Valor digital dos eixos. Eixo Y: %d. Eixo X:%d\n", vrx_value, vry_value);
-        pwm_set_gpio_level(blue_led, vry_value);
-        pwm_set_gpio_level(red_led, vrx_value);
-        sleep_ms(100);
-    }
 }
