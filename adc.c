@@ -21,7 +21,6 @@
 #define periodo 4096
 #define int_irq(gpio_pin) gpio_set_irq_enabled_with_callback(gpio_pin, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_handler);
 
-uint8_t i;
 const uint8_t b[2] = {5, 22};
 const float divisor = 16.0;
 uint16_t led_level_b, led_level_r = 100;
@@ -42,6 +41,8 @@ void pwm_level();
 void joyinit();
 void joy_set();
 void joy_reading(uint16_t *vrx_value, uint16_t *vry_value);
+void joy_definition();
+uint16_t media(uint8_t input);
 void oledinit();
 void oleddis(const char *dot);
 void gpio_irq_handler(uint gpio, uint32_t events);
@@ -56,10 +57,8 @@ pwm_setup(red_led, &slice_led_r, 0);
 int_irq(botao_a);
 int_irq(botao_j);
     while (true) {
-        joy_reading(&vrx_value, &vry_value);
+        joy_definition();
         printf("Valor digital dos eixos. Eixo Y: %d. Eixo X:%d\n", vry_value, vrx_value);
-        pwm_set_gpio_level(blue_led, vry_value);
-        pwm_set_gpio_level(red_led, vrx_value);
         sleep_ms(100);
     }
 }
@@ -67,14 +66,14 @@ int_irq(botao_j);
 //Funções
 
 void ledinit(){
-    for(i = 11 ; i <= 13; i++ ){    
+    for(uint8_t i = 11 ; i <= 13; i++ ){    
         gpio_init(i);
         gpio_set_dir(i, 1);
         gpio_put(i, 0);
     }
 }
 void botinit(){
-    for(i = 0 ; i <= 1 ; i++){
+    for(uint8_t i = 0 ; i <= 1 ; i++){
         gpio_init (b[i]);
         gpio_set_dir(b[i], 0);
         gpio_pull_up(b[i]);
@@ -83,7 +82,7 @@ void botinit(){
 
 void i2cinit(){
     i2c_init(i2c_PORT, 400000);
-        for(i = 14 ; i <= 15; i++){
+        for(uint8_t i = 14 ; i <= 15; i++){
             gpio_set_function(i, GPIO_FUNC_I2C);
             gpio_pull_up(i);
         }
@@ -107,21 +106,33 @@ void joyinit(){
 
 void joy_set(){
     joyinit();
-    pwm_setup(blue_led, &slice_led_b, led_level_b);
-    pwm_setup(red_led, &slice_led_r, led_level_r);
+    pwm_setup(blue_led, &slice_led_b, 0);
+    pwm_setup(red_led, &slice_led_r, 0);
 }
 
-void joy_reading(uint16_t *vrx_value, uint16_t *vry_value){
-    adc_select_input(0);
-    sleep_us(2);
-    *vrx_value = adc_read();
-    adc_select_input(1);
-    sleep_us(2);
-    *vry_value = adc_read();
+void joy_definition(){
+    vrx_value = media(adc_channel_0);
+    vry_value = media(adc_channel_1);
+    uint16_t intensidade_b = (vrx_value * periodo) / 4095;
+    uint16_t intensidade_r = (vry_value * periodo) / 4095;
+
+        if(vrx_value <= 2620 && vrx_value >= 1200)pwm_set_gpio_level(red_led, 0);
+        else pwm_set_gpio_level(red_led, intensidade_b);
+        if(vry_value <= 2750 && vry_value >= 1200)pwm_set_gpio_level(blue_led, 0);
+        else pwm_set_gpio_level(blue_led, intensidade_r);
+}
+
+uint16_t media(uint8_t input){
+uint16_t media_adc = 0;
+    for(uint8_t i = 0; i <= 9; i++){
+        adc_select_input(input);
+        sleep_us(2);
+        media_adc += adc_read();
+    }
+return media_adc / 10;
 }
 
 void pwm_level(){
-        joy_reading(&vrx_value, &vry_value);
         pwm_set_gpio_level(blue_led, vry_value);
         pwm_set_gpio_level(red_led, vrx_value);
 }
@@ -146,9 +157,12 @@ void gpio_irq_handler(uint gpio, uint32_t events){
     if(gpio == botao_a || gpio == botao_j){
         if(current_time - last_time > 300000){
             if(gpio == botao_a){
-                pwm_set_enabled(12, !f_t_1);
-                pwm_set_enabled(13, !f_t_2);
+                pwm_set_enabled(slice_led_b, !f_t_1);
+                pwm_set_enabled(slice_led_r, !f_t_2);
 
+                f_t_1 = !f_t_1;
+                f_t_2 = !f_t_2;
+                
                 on_off_1 = !on_off_1;
                 (on_off_1 == 1) ? printf("PWM Desativado.\n") : printf("PWM Ativado.\n");
             }
