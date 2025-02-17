@@ -73,6 +73,10 @@ Este projeto visa o controle de LEDs, a utilização de um conversor ADC em um j
 
 Desenvolvido para fins educacionais no estudo de microcontroladores.
 
+## Licença
+
+The Unlicense
+
 ## Autor
 
 Hugo Martins Santana (TIC370101267)
