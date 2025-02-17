@@ -4,7 +4,7 @@
 #include "hardware/i2c.h"
 #include "hardware/pwm.h"
 #include "ssd1306.h"
-
+//Macros utilizadas.
 #define botao_a 5
 #define green_led 11
 #define blue_led 12
@@ -20,7 +20,7 @@
 #define endereco 0x3c
 #define periodo 4096
 #define int_irq(gpio_pin) gpio_set_irq_enabled_with_callback(gpio_pin, GPIO_IRQ_EDGE_FALL, true, gpio_irq_handler);
-
+//Variáveis Utilizadas.
 const uint8_t b[2] = {5, 22};
 const float divisor = 16.0;
 uint slice_led_b, slice_led_r;
@@ -33,19 +33,18 @@ uint16_t vrx_value, vry_value;
 volatile uint8_t border = 0;
 volatile uint8_t l_border = 2;
 bool light = 0;
-
-void ledinit();
-void botinit();
-void i2cinit();
-void pwm_setup(uint led, uint *slice, uint16_t leveli);
-void joyinit();
-void joy_definition();
-uint16_t media(uint8_t input);
-void oledinit();
-void oleddis();
-void gpio_irq_handler(uint gpio, uint32_t events);
 ssd1306_t ssd;
-
+//Protótipo das funções.
+void ledinit(); //Responsável por iniciar os leds.
+void botinit(); //Responsável por iniciar os botões.
+void i2cinit(); //Responsável por iniciar o i2c.
+void pwm_setup(uint led, uint *slice, uint16_t leveli); //Responsável por organizar a inicialização do pwm.
+void joyinit(); //inicialização do joystick.
+void joy_definition(); //Definição de como o joystick vai funcionar ao ler o adc e determinar a intensidade via pwm.
+uint16_t media(uint8_t input); //Responsável por deixar a leitura do ADC mais precisa ao fazer a média de 10 leituras.
+void oledinit(); //Responsável por iniciar o display.
+void oleddis(); //Responsável por configurar o display para funcionar em conjunto com o joystick(ADC) e pwm.
+void gpio_irq_handler(uint gpio, uint32_t events); //Eventos ao acionar a interrupção por qualquer um dos botões ativos.
 //Função principal
 int main(){
 stdio_init_all();
@@ -138,12 +137,12 @@ void oleddis(){
     light = !light;
     uint16_t coluna_x = (vrx_value * WIDTH) / 4095;
     uint16_t linha_y = (vry_value * HEIGHT) / 4095;
-    if(coluna_x > WIDTH - 8) coluna_x = WIDTH - 8;
-    if(linha_y > HEIGHT - 8) linha_y = HEIGHT - 8;
+        if(coluna_x > WIDTH - 8) coluna_x = WIDTH - 8;
+        if(linha_y > HEIGHT - 8) linha_y = HEIGHT - 8;
     ssd1306_fill(&ssd, false);
     ssd1306_rect(&ssd, linha_y, coluna_x, 8, 8, true, true);
-    if(border == 1) ssd1306_rect(&ssd, 4, 4, 124, 60, on_off_2, false);
-    if(border == 2) ssd1306_rect(&ssd, 4, 4, 124, 60, !light, false);
+        if(border == 1) ssd1306_rect(&ssd, 4, 4, 124, 60, on_off_2, false);
+        if(border == 2) ssd1306_rect(&ssd, 4, 4, 124, 60, !light, false);
     ssd1306_send_data(&ssd);
 }
 
@@ -165,7 +164,7 @@ void gpio_irq_handler(uint gpio, uint32_t events){
                 gpio_put(11, !gpio_get(11));
                 (on_off_2 == 1) ? printf("Led Verde Ligado.\n"): printf("Led Verde Desligado.\n");
                 on_off_2 = !on_off_2;
-                    if(border == 0){
+                    if(border == 0){ //responsável por permitir alternância de bordas ao ligar o led verde.
                         if(l_border == 1){
                             border = 2;
                         }
