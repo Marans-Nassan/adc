@@ -32,12 +32,14 @@ static volatile bool on_off_pw1 = 0;
 static volatile bool f_t_1 = 1;
 static volatile bool f_t_2 = 1;
 uint16_t vrx_value, vry_value;
+volatile uint8_t border = 0;
+volatile uint8_t l_border = 2;
+bool light = 0;
 
 void ledinit();
 void botinit();
 void i2cinit();
 void pwm_setup(uint led, uint *slice, uint16_t leveli);
-void pwm_level();
 void joyinit();
 void joy_set();
 void joy_reading(uint16_t *vrx_value, uint16_t *vry_value);
@@ -137,17 +139,14 @@ uint16_t media_adc = 0;
 return media_adc / 10;
 }
 
-void pwm_level(){
-        pwm_set_gpio_level(blue_led, vry_value);
-        pwm_set_gpio_level(red_led, vrx_value);
-}
-
 void oledinit(){
     ssd1306_init(&ssd, WIDTH, HEIGHT, false, endereco, i2c_PORT);
     ssd1306_config(&ssd);
 }
 
 void oleddis(){
+    
+    light = !light;
     vrx_value = media(adc_channel_1);
     vry_value = 4095 - media(adc_channel_0);
     uint16_t coluna_x = (vrx_value * WIDTH) / 4095;
@@ -156,6 +155,8 @@ void oleddis(){
     if(linha_y > HEIGHT - 8) linha_y = HEIGHT - 8;
     ssd1306_fill(&ssd, false);
     ssd1306_rect(&ssd, linha_y, coluna_x, 8, 8, true, true);
+    if(border == 1) ssd1306_rect(&ssd, 4, 4, 124, 60, on_off_2, false);
+    if(border == 2) ssd1306_rect(&ssd, 4, 4, 124, 60, !light, false);
     ssd1306_send_data(&ssd);
 }
 
@@ -175,11 +176,17 @@ void gpio_irq_handler(uint gpio, uint32_t events){
             }
             if (gpio == botao_j){
                 gpio_put(11, !gpio_get(11));
-                on_off_2 = !on_off_2;
                 (on_off_2 == 1) ? printf("Led Verde Ligado.\n"): printf("Led Verde Desligado.\n");
+                on_off_2 = !on_off_2;
+                    if(border == 0){
+                        if(l_border == 1){
+                            border = 2;
+                        }
+                        else border = 1;
+                        l_border = border;
+                    } else border = 0;
+                }
             }
-        }
-        last_time = current_time;
     }
-
+        last_time = current_time;
 }
