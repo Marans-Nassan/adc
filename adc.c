@@ -19,7 +19,7 @@
 #define VRY 27
 #define endereco 0x3c
 #define periodo 4096
-#define int_irq(gpio_pin) gpio_set_irq_enabled_with_callback(gpio_pin, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_handler);
+#define int_irq(gpio_pin) gpio_set_irq_enabled_with_callback(gpio_pin, GPIO_IRQ_EDGE_FALL, true, gpio_irq_handler);
 
 const uint8_t b[2] = {5, 22};
 const float divisor = 16.0;
@@ -44,20 +44,25 @@ void joy_reading(uint16_t *vrx_value, uint16_t *vry_value);
 void joy_definition();
 uint16_t media(uint8_t input);
 void oledinit();
-void oleddis(const char *dot);
+void oleddis();
 void gpio_irq_handler(uint gpio, uint32_t events);
+ssd1306_t ssd;
 
+//Função principal
 int main(){
 stdio_init_all();
+i2cinit();
 ledinit();
 botinit();
 joy_set();
+oledinit();
 pwm_setup(blue_led, &slice_led_b, 0);
 pwm_setup(red_led, &slice_led_r, 0);
 int_irq(botao_a);
 int_irq(botao_j);
     while (true) {
         joy_definition();
+        oleddis();
         printf("Valor digital dos eixos. Eixo Y: %d. Eixo X:%d\n", vry_value, vrx_value);
         sleep_ms(100);
     }
@@ -81,8 +86,8 @@ void botinit(){
 }   
 
 void i2cinit(){
-    i2c_init(i2c_PORT, 400000);
-        for(uint8_t i = 14 ; i <= 15; i++){
+    i2c_init(i2c_PORT, 400*1000);
+        for(uint8_t i = 14 ; i < 16; i++){
             gpio_set_function(i, GPIO_FUNC_I2C);
             gpio_pull_up(i);
         }
@@ -111,8 +116,8 @@ void joy_set(){
 }
 
 void joy_definition(){
-    vrx_value = media(adc_channel_0);
-    vry_value = media(adc_channel_1);
+    vrx_value = media(adc_channel_1);
+    vry_value = 4095 - media(adc_channel_0);
     uint16_t intensidade_b = (vrx_value * periodo) / 4095;
     uint16_t intensidade_r = (vry_value * periodo) / 4095;
 
@@ -137,18 +142,20 @@ void pwm_level(){
         pwm_set_gpio_level(red_led, vrx_value);
 }
 
-ssd1306_t ssd;
 void oledinit(){
     ssd1306_init(&ssd, WIDTH, HEIGHT, false, endereco, i2c_PORT);
     ssd1306_config(&ssd);
-    ssd1306_fill(&ssd, false);
-    ssd1306_send_data(&ssd);
 }
 
-void oleddis(const char *dot){
+void oleddis(){
+    vrx_value = media(adc_channel_1);
+    vry_value = 4095 - media(adc_channel_0);
+    uint16_t coluna_x = (vrx_value * WIDTH) / 4095;
+    uint16_t linha_y = (vry_value * HEIGHT) / 4095;
+    if(coluna_x > WIDTH - 8) coluna_x = WIDTH - 8;
+    if(linha_y > HEIGHT - 8) linha_y = HEIGHT - 8;
     ssd1306_fill(&ssd, false);
-    ssd1306_send_data(&ssd);
-    ssd1306_draw_string(&ssd, dot, 58, 25);
+    ssd1306_rect(&ssd, linha_y, coluna_x, 8, 8, true, true);
     ssd1306_send_data(&ssd);
 }
 
